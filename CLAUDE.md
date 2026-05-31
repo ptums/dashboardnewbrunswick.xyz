@@ -29,7 +29,7 @@ The audience is anyone making a life decision — families relocating, Rutgers s
 - [x] FE: Astro app created
 - [x] BE: Express/TS API created
 - [x] DB: Postgres schema created
-- [ ] CI/CD: GitHub Actions configured
+- [x] CI/CD: GitHub Actions configured
 - [ ] Data: First API integrations live
 - [ ] Telemetry: Sentry + PostHog wired
 - [ ] Deploy: FE on Cloudflare Pages, BE on DigitalOcean
