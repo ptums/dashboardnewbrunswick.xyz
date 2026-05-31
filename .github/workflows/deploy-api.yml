@@ -55,6 +55,7 @@ jobs:
         run: pnpm --filter api db:push
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NO_COLOR: '1'
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
