@@ -30,9 +30,9 @@ The audience is anyone making a life decision — families relocating, Rutgers s
 - [x] BE: Express/TS API created
 - [x] DB: Postgres schema created
 - [x] CI/CD: GitHub Actions configured
-- [ ] Data: First API integrations live
-- [ ] Telemetry: Sentry + PostHog wired
-- [ ] Deploy: FE on Cloudflare Pages, BE on DigitalOcean
+- [x] Data: First API integrations live
+- [x] Telemetry: Sentry + PostHog wired
+- [x] Deploy: FE on Cloudflare Pages, BE on DigitalOcean
 
 ---
 
@@ -500,11 +500,11 @@ pnpm --filter api db:studio   # Open Drizzle Studio
 
 - [ ] **Task 5:** `fetchWithCache` utility + Census API integration (demographics)
 - [ ] **Task 6:** FBI Crime Data API integration
-- [ ] **Task 7:** BLS unemployment + CPI integration
-- [ ] **Task 8:** Walk Score API integration
-- [ ] **Task 9:** Urban Institute Education API integration
-- [ ] **Task 10:** EPA Air Quality API integration
-- [ ] **Task 11:** `/api/dashboard` endpoint assembles all data + scoring algorithm
+- [x] **Task 7:** BLS unemployment + CPI integration
+- [x] **Task 8:** Walk Score API integration
+- [x] **Task 9:** Urban Institute Education API integration
+- [x] **Task 10:** EPA Air Quality API integration
+- [x] **Task 11:** `/api/dashboard` endpoint assembles all data + scoring algorithm
 
 ### Phase 3 — Frontend
 

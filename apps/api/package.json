@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@repo/shared": "workspace:*",
+    "@sentry/node": "^10.55.0",
     "drizzle-orm": "^0.45.2",
     "express": "^4.19.2",
+    "node-cache": "^5.1.2",
     "pg": "^8.21.0"
   },
   "devDependencies": {

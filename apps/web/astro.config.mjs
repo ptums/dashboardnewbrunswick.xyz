@@ -1,13 +1,23 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
+import sentry from '@sentry/astro';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  integrations: [react(), tailwind()],
+  integrations: [
+    react(),
+    tailwind(),
+    sentry({
+      sourceMapsUploadOptions: {
+        project: 'dashboardnewbrunswick',
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+      },
+    }),
+  ],
   output: 'static',
   vite: {
     resolve: {
