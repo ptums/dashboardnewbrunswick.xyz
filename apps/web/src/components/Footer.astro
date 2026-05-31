@@ -1,0 +1,28 @@
+---
+const lastUpdated = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+---
+
+<footer class="mt-16 border-t border-gray-200 bg-white">
+  <div class="mx-auto max-w-6xl px-4 py-10">
+    <div class="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+      <div>
+        <p class="font-semibold text-gray-900">Dashboard New Brunswick</p>
+        <p class="text-sm text-gray-500">dashboardnewbrunswick.xyz</p>
+      </div>
+
+      <div class="text-sm text-gray-500">
+        <p class="font-medium text-gray-700">Data Sources</p>
+        <p>US Census &middot; FBI &middot; BLS &middot; EPA &middot; Walk Score</p>
+      </div>
+
+      <div class="text-sm text-gray-500 md:text-right">
+        <p>Last updated: {lastUpdated}</p>
+        <a href="/feedback" class="text-blue-600 hover:underline">Submit feedback</a>
+      </div>
+    </div>
+
+    <p class="mt-8 text-xs text-gray-400">
+      This site presents public data objectively. No editorial opinion is expressed.
+    </p>
+  </div>
+</footer>

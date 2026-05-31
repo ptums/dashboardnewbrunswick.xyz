@@ -1,0 +1,85 @@
+---
+const navLinks = [
+  { label: 'Safety', href: '#safety' },
+  { label: 'Schools', href: '#schools' },
+  { label: 'Cost', href: '#cost' },
+  { label: 'Jobs', href: '#jobs' },
+  { label: 'Neighborhood', href: '#neighborhood' },
+  { label: 'Air', href: '#air-quality' },
+  { label: 'Demographics', href: '#demographics' },
+  { label: 'Verdict', href: '#verdict' },
+];
+---
+
+<nav class="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
+  <div class="mx-auto max-w-6xl px-4">
+    <div class="flex h-14 items-center justify-between">
+      <a href="/" class="text-sm font-bold leading-tight text-gray-900 sm:text-base">
+        Dashboard New Brunswick
+      </a>
+
+      <ul class="hidden items-center gap-5 md:flex">
+        {
+          navLinks.map(({ label, href }) => (
+            <li>
+              <a
+                href={href}
+                class="text-sm font-medium text-gray-600 transition-colors hover:text-blue-600"
+              >
+                {label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+
+      <button
+        id="menu-toggle"
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+        class="flex h-8 w-8 flex-col items-center justify-center gap-1.5 md:hidden"
+      >
+        <span class="block h-0.5 w-6 bg-gray-700"></span>
+        <span class="block h-0.5 w-6 bg-gray-700"></span>
+        <span class="block h-0.5 w-6 bg-gray-700"></span>
+      </button>
+    </div>
+
+    <div id="mobile-menu" class="hidden pb-4 md:hidden">
+      <ul class="flex flex-col gap-1">
+        {
+          navLinks.map(({ label, href }) => (
+            <li>
+              <a
+                href={href}
+                class="block py-2 text-sm font-medium text-gray-700 transition-colors hover:text-blue-600"
+              >
+                {label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<script>
+  const toggle = document.getElementById('menu-toggle');
+  const menu = document.getElementById('mobile-menu');
+
+  toggle?.addEventListener('click', () => {
+    menu?.classList.toggle('hidden');
+    const isOpen = !menu?.classList.contains('hidden');
+    toggle.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  // Close mobile menu when an anchor link is tapped
+  menu?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => {
+      menu.classList.add('hidden');
+      toggle?.setAttribute('aria-expanded', 'false');
+    });
+  });
+</script>

@@ -508,11 +508,11 @@ pnpm --filter api db:studio   # Open Drizzle Studio
 
 ### Phase 3 — Frontend
 
-- [ ] **Task 12:** Homepage shell — layout, nav, section anchors, footer
-- [ ] **Task 13:** `<HeroScore />` and `<VerdictSection />` components
-- [ ] **Task 14:** `<SafetySection />` and `<SchoolsSection />` components
-- [ ] **Task 15:** `<CostSection />`, `<JobsSection />`, `<NeighborhoodSection />` components
-- [ ] **Task 16:** `<AirQualitySection />` and `<DemographicsSection />` components
+- [x] **Task 12:** Homepage shell — layout, nav, section anchors, footer
+- [x] **Task 13:** `<HeroScore />` and `<VerdictSection />` components
+- [x] **Task 14:** `<SafetySection />` and `<SchoolsSection />` components
+- [x] **Task 15:** `<CostSection />`, `<JobsSection />`, `<NeighborhoodSection />` components
+- [x] **Task 16:** `<AirQualitySection />` and `<DemographicsSection />` components
 - [ ] **Task 17:** Feedback form + `/api/feedback` endpoint + Resend email
 
 ### Phase 4 — SEO & Polish

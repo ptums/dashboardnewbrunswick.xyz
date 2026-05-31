@@ -1,18 +1,59 @@
 ---
-// Dashboard New Brunswick — main page shell (sections added in Task 12)
-import Layout from '../layouts/Layout.astro';
+import Base from '../layouts/Base.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import HeroScore from '../components/HeroScore';
+import VerdictSection from '../components/VerdictSection';
+import SafetySection from '../components/SafetySection';
+import SchoolsSection from '../components/SchoolsSection';
+import CostSection from '../components/CostSection';
+import JobsSection from '../components/JobsSection';
+import NeighborhoodSection from '../components/NeighborhoodSection';
+import AirQualitySection from '../components/AirQualitySection';
+import DemographicsSection from '../components/DemographicsSection';
 
 const title = 'Is New Brunswick a good place to live? | Dashboard New Brunswick';
 const description =
   'Data-driven answers about living in New Brunswick, NJ — crime, schools, cost of living, jobs, and more. Sourced from public government data.';
 ---
 
-<Layout {title} {description}>
-  <main class="mx-auto max-w-4xl px-4 py-16">
-    <h1 class="text-4xl font-bold">Dashboard New Brunswick</h1>
-    <p class="mt-4 text-lg text-gray-600">Coming soon.</p>
+<Base {title} {description}>
+  <Nav />
+
+  <main>
+    <HeroScore client:load />
+
+    <SafetySection client:load />
+
+    <SchoolsSection client:load />
+
+    <CostSection client:load />
+
+    <JobsSection client:load />
+
+    <NeighborhoodSection client:load />
+
+    <AirQualitySection client:load />
+
+    <DemographicsSection client:load />
+
+    <VerdictSection data={null} client:load />
+
+    <section id="feedback" class="bg-blue-50 px-4 py-16">
+      <div class="mx-auto max-w-4xl text-center">
+        <h2 class="text-xl font-bold text-gray-900">Did we get something wrong?</h2>
+        <p class="mt-2 text-sm text-gray-600">
+          This site runs on public data. If you spot an error, tell us and we'll fix it.
+        </p>
+        <div class="mt-6 rounded-xl border border-dashed border-blue-200 bg-white p-8 text-center text-sm text-gray-400">
+          Coming soon — <code class="text-gray-500">FeedbackBanner</code> component
+        </div>
+      </div>
+    </section>
   </main>
-</Layout>
+
+  <Footer />
+</Base>
 
 <script>
   import { track } from '../lib/posthog';

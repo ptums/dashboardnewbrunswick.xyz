@@ -35,8 +35,25 @@ export interface CrimeData {
   dataNote: string;
 }
 
-// Placeholder data shape — expanded when cost-of-living section is built (Task 15)
-export type CostData = Record<string, unknown>;
+export interface CostComparison {
+  newBrunswick: number;
+  njAverage: number;
+  national: number;
+}
+
+// All fields optional — backend returns {} until HUD/BLS cost data is wired up (Task 15).
+export interface CostData {
+  source?: string;
+  sourceUrl?: string;
+  lastUpdated?: string;
+  /** Monthly median rent in dollars. */
+  medianRent?: CostComparison | null;
+  /** Median home sale price in dollars. */
+  medianHomePrice?: CostComparison | null;
+  /** CPI-based cost of living index. National baseline = 100. */
+  costOfLivingIndex?: number | null;
+  dataNote?: string;
+}
 
 // --- Task 10: Air Quality (EPA AQS API) ---
 
