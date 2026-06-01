@@ -9,7 +9,8 @@ const EPA_EMAIL = 'test@aqs.epa.gov';
 const EPA_KEY = 'test';
 
 const STATE_CODE = '34'; // New Jersey
-const COUNTY_CODE = '023'; // Middlesex County
+// Middlesex has limited EPA monitoring stations — fall back through nearby counties
+const COUNTY_CODES = ['023', '039', '013']; // Middlesex, Union, Essex
 
 // AQS parameter codes
 const PARAM_PM25 = '88101'; // PM2.5 (FRM/FEM, Local Conditions)
@@ -29,7 +30,7 @@ interface EpaRecord {
 }
 
 interface EpaResponse {
-  Header?: Array<{ status?: string; rows?: number }>;
+  Header?: Array<{ status?: string; error?: unknown; rows?: number }>;
   Data?: unknown[];
 }
 
@@ -62,6 +63,11 @@ async function epaGet(path: string): Promise<EpaRecord[]> {
   if (!res.ok) throw new Error(`EPA AQS API error: ${res.status} for ${path}`);
   const raw: unknown = await res.json();
   if (!isEpaResponse(raw) || !Array.isArray(raw.Data)) return [];
+  // Surface API-level errors (rate limit, bad credentials) hidden in the Header
+  const header = Array.isArray(raw.Header) ? (raw.Header[0] as Record<string, unknown> | undefined) : undefined;
+  if (header?.['status'] === 'Failed') {
+    throw new Error(`EPA AQS rejected request: ${String(header['error'] ?? 'unknown error')}`);
+  }
   return raw.Data.map(toEpaRecord).filter((r): r is EpaRecord => r !== null);
 }
 
@@ -103,36 +109,57 @@ function njAverageAqi(records: EpaRecord[]): number {
 
 // ---
 
-async function fetchAirQualityData(): Promise<AirQualityData> {
-  const edate = fmtDate(new Date(Date.now() - 86_400_000)); // yesterday
-  const bdate = fmtDate(new Date(Date.now() - 60 * 86_400_000)); // 60 days ago
-
-  const countyQs = `email=${EPA_EMAIL}&key=${EPA_KEY}&state=${STATE_CODE}&county=${COUNTY_CODE}&bdate=${bdate}&edate=${edate}`;
-  const stateQs = `email=${EPA_EMAIL}&key=${EPA_KEY}&state=${STATE_CODE}&bdate=${bdate}&edate=${edate}`;
-
-  const [pm25Result, pm10Result, ozoneResult, njResult] = await Promise.allSettled([
-    epaGet(`/dailySummaryData/byCounty?${countyQs}&param=${PARAM_PM25}`),
-    epaGet(`/dailySummaryData/byCounty?${countyQs}&param=${PARAM_PM10}`),
-    epaGet(`/dailySummaryData/byCounty?${countyQs}&param=${PARAM_OZONE}`),
-    epaGet(`/dailySummaryData/byState?${stateQs}&param=${PARAM_OZONE}`),
+async function fetchCountyData(
+  county: string,
+  bdate: string,
+  edate: string,
+): Promise<{ pm25: EpaRecord[]; pm10: EpaRecord[]; ozone: EpaRecord[] }> {
+  const qs = `email=${EPA_EMAIL}&key=${EPA_KEY}&state=${STATE_CODE}&county=${county}&bdate=${bdate}&edate=${edate}`;
+  const [pm25Result, pm10Result, ozoneResult] = await Promise.allSettled([
+    epaGet(`/dailySummaryData/byCounty?${qs}&param=${PARAM_PM25}`),
+    epaGet(`/dailySummaryData/byCounty?${qs}&param=${PARAM_PM10}`),
+    epaGet(`/dailySummaryData/byCounty?${qs}&param=${PARAM_OZONE}`),
   ]);
-
   const resolve = (r: PromiseSettledResult<EpaRecord[]>): EpaRecord[] =>
     r.status === 'fulfilled' ? r.value : [];
+  return { pm25: resolve(pm25Result), pm10: resolve(pm10Result), ozone: resolve(ozoneResult) };
+}
 
-  const pm25Records = resolve(pm25Result);
-  const pm10Records = resolve(pm10Result);
-  const ozoneRecords = resolve(ozoneResult);
-  const njRecords = resolve(njResult);
+async function fetchAirQualityData(): Promise<AirQualityData> {
+  // EPA AQS data has a 6–12 month publishing lag; target 2023 data which is fully finalized
+  const edate = fmtDate(new Date(Date.now() - 730 * 86_400_000));  // ~2 years ago
+  const bdate = fmtDate(new Date(Date.now() - 1095 * 86_400_000)); // ~3 years ago
 
-  // Require at least some data — throw to trigger fetchWithCache fallback if all are empty
-  if (pm25Records.length === 0 && pm10Records.length === 0 && ozoneRecords.length === 0) {
-    throw new Error('EPA AQS API returned no Middlesex County data');
+  const stateQs = `email=${EPA_EMAIL}&key=${EPA_KEY}&state=${STATE_CODE}&bdate=${bdate}&edate=${edate}`;
+
+  // Try counties in order until one has monitoring data
+  let pm25Records: EpaRecord[] = [];
+  let pm10Records: EpaRecord[] = [];
+  let ozoneRecords: EpaRecord[] = [];
+  let usedCounty = COUNTY_CODES[0]!;
+
+  for (const county of COUNTY_CODES) {
+    const results = await fetchCountyData(county, bdate, edate);
+    if (results.pm25.length > 0 || results.pm10.length > 0 || results.ozone.length > 0) {
+      pm25Records = results.pm25;
+      pm10Records = results.pm10;
+      ozoneRecords = results.ozone;
+      usedCounty = county;
+      break;
+    }
   }
+
+  if (pm25Records.length === 0 && pm10Records.length === 0 && ozoneRecords.length === 0) {
+    throw new Error('EPA AQS API returned no data for any NJ county');
+  }
+
+  const njResult = await epaGet(`/dailySummaryData/byState?${stateQs}&param=${PARAM_OZONE}`).catch(() => [] as EpaRecord[]);
 
   const allCountyRecords = [...pm25Records, ...pm10Records, ...ozoneRecords];
   const localAqi = latestAqi(allCountyRecords);
-  const njAvgAqi = njAverageAqi(njRecords) || NATIONAL_AVG_AQI; // fallback to national if NJ data empty
+  const njAvgAqi = njAverageAqi(njResult) || NATIONAL_AVG_AQI;
+
+  const countyLabel = usedCounty === '023' ? 'Middlesex County' : 'Essex County (nearest NJ station)';
 
   return {
     source: 'EPA Air Quality System (AQS)',
@@ -144,7 +171,7 @@ async function fetchAirQualityData(): Promise<AirQualityData> {
     ozone: Math.round(latestConcentration(ozoneRecords, PARAM_OZONE) * 1000) / 1000,
     vsNjAverage: njAvgAqi,
     vsNationalAverage: NATIONAL_AVG_AQI,
-    dataNote: 'Middlesex County, NJ — daily summary data from EPA AQS monitoring stations',
+    dataNote: `${countyLabel}, NJ — daily summary data from EPA AQS monitoring stations`,
   };
 }
 

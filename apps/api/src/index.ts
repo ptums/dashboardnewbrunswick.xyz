@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import * as Sentry from '@sentry/node';
 
 Sentry.init({
@@ -130,6 +131,9 @@ app.get('/api/dashboard', async (_req, res) => {
     const settle = <T>(r: PromiseSettledResult<T>, label: string): T | null => {
       if (r.status === 'rejected') {
         Sentry.captureException(r.reason, { tags: { category: label } });
+        if (process.env['NODE_ENV'] !== 'production') {
+          process.stderr.write(`[${label}] ${String(r.reason)}\n`);
+        }
         return null;
       }
       return r.value;

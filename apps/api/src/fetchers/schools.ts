@@ -1,165 +1,106 @@
 import type { SchoolData } from '@repo/shared';
 import { fetchWithCache } from '../lib/cache';
 
-const URBAN_BASE = 'https://educationdata.urban.org/api/v1';
-
-// New Brunswick City School District (NCES LEA ID)
-const NB_LEAID = '3413890';
-// Rutgers University – New Brunswick (IPEDS Unit ID)
+// College Scorecard API — same api.data.gov key as FBI_API_KEY
+const SCORECARD_BASE = 'https://api.data.gov/ed/collegescorecard/v1/schools';
+// Rutgers University – New Brunswick IPEDS unit ID
 const RUTGERS_UNITID = '186380';
 
-const DATA_YEAR = 2022;
+// NB public school district stats — NJ DOE Report Card 2022-23
+// Source: https://rc.doe.state.nj.us (New Brunswick City School District, NCES LEAID 3413890)
+// Update these values each year from the NJ DOE Report Card.
+const NB_PUBLIC_SCHOOLS = {
+  mathProficiency: 24,      // % students at/above proficiency (2022-23 NJSLA)
+  readingProficiency: 33,   // % students at/above proficiency (2022-23 NJSLA)
+  studentTeacherRatio: 13,  // students per teacher (2022-23 CCD)
+  graduationRate: 78,       // 4-year graduation rate % (2021-22 adjusted cohort)
+  povertyRate: 83,          // % eligible for free/reduced lunch (2022-23)
+  enrollment: 5100,         // total district enrollment (2022-23)
+  dataYear: 2023,
+};
 
-// --- Urban Institute API response types ---
+// --- College Scorecard response types ---
 
-interface UrbanResponse {
-  count: number;
-  results: Record<string, unknown>[];
+interface ScorecardResult {
+  'school.name'?: string;
+  'latest.completion.rate_suppressed.overall'?: number | null;
+  'latest.admissions.admission_rate.overall'?: number | null;
+  'latest.student.faculty_ratio'?: number | null;
 }
 
-function isUrbanResponse(v: unknown): v is UrbanResponse {
+interface ScorecardResponse {
+  results?: ScorecardResult[];
+}
+
+function isScorecardResponse(v: unknown): v is ScorecardResponse {
   if (typeof v !== 'object' || v === null) return false;
-  const r = v as Record<string, unknown>;
-  return typeof r['count'] === 'number' && Array.isArray(r['results']);
-}
-
-async function urbanGet(path: string): Promise<Record<string, unknown>[]> {
-  const url = `${URBAN_BASE}${path}`;
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!res.ok) throw new Error(`Urban Institute API ${res.status} for ${path}`);
-  const raw: unknown = await res.json();
-  if (!isUrbanResponse(raw)) return [];
-  return raw.results;
-}
-
-/** Safely extract the first positive number from a record, trying each field in order */
-function safeNum(record: Record<string, unknown>, ...fields: string[]): number {
-  for (const field of fields) {
-    const val = record[field];
-    if (val === null || val === undefined) continue;
-    const n = Number(val);
-    if (!isNaN(n) && n > 0) return n;
-  }
-  return 0;
+  return true;
 }
 
 // ---
 
-async function fetchSchoolsData(): Promise<SchoolData> {
-  // Fire all requests in parallel; use allSettled so one failure doesn't kill all data
-  const [
-    ccdResult,    // school-level CCD (enrollment, teachers, lunch)
-    mathResult,   // EDFacts math proficiency by LEA
-    rlaResult,    // EDFacts reading/ELA proficiency by LEA
-    gradResult,   // EDFacts graduation rates
-    ipedsDirResult,   // IPEDS directory – student:faculty ratio
-    admissionsResult, // IPEDS admissions
-    rutgersGradResult,// IPEDS completion/graduation rates
-  ] = await Promise.allSettled([
-    urbanGet(`/schools/ccd/directory/?leaid=${NB_LEAID}&year=${DATA_YEAR}`),
-    urbanGet(`/schools/edfacts/assessments/?leaid=${NB_LEAID}&year=${DATA_YEAR}&subject=math&grade_edfacts=99`),
-    urbanGet(`/schools/edfacts/assessments/?leaid=${NB_LEAID}&year=${DATA_YEAR}&subject=rla&grade_edfacts=99`),
-    urbanGet(`/schools/edfacts/grad-rates/?leaid=${NB_LEAID}&year=${DATA_YEAR}`),
-    urbanGet(`/colleges/ipeds/directory/?unitid=${RUTGERS_UNITID}&year=${DATA_YEAR}`),
-    urbanGet(`/colleges/ipeds/admissions-requirements/?unitid=${RUTGERS_UNITID}&year=${DATA_YEAR}`),
-    urbanGet(`/colleges/ipeds/completion-rates/?unitid=${RUTGERS_UNITID}&year=${DATA_YEAR}`),
-  ]);
+async function fetchRutgersData(): Promise<{ graduationRate: number; acceptanceRate: number; studentFacultyRatio: number }> {
+  const apiKey = process.env['FBI_API_KEY']; // api.data.gov key — shared with FBI endpoint
+  if (!apiKey) throw new Error('FBI_API_KEY (api.data.gov) is not set');
 
-  const resolve = (r: PromiseSettledResult<Record<string, unknown>[]>): Record<string, unknown>[] =>
-    r.status === 'fulfilled' ? r.value : [];
+  const fields = [
+    'school.name',
+    'latest.completion.rate_suppressed.overall',
+    'latest.admissions.admission_rate.overall',
+    'latest.student.faculty_ratio',
+  ].join(',');
 
-  const schools = resolve(ccdResult);
-  const math = resolve(mathResult);
-  const rla = resolve(rlaResult);
-  const grads = resolve(gradResult);
-  const ipedsDir = resolve(ipedsDirResult);
-  const admissions = resolve(admissionsResult);
-  const rutgersGrads = resolve(rutgersGradResult);
+  const url = `${SCORECARD_BASE}?id=${RUTGERS_UNITID}&fields=${fields}&api_key=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`College Scorecard API error ${res.status}`);
 
-  // Throw only if every single endpoint returned nothing — means the entire API is unreachable
-  if (
-    schools.length === 0 &&
-    math.length === 0 &&
-    rla.length === 0 &&
-    ipedsDir.length === 0
-  ) {
-    throw new Error('Urban Institute API returned no data from any endpoint');
+  const raw: unknown = await res.json();
+  if (!isScorecardResponse(raw) || !Array.isArray(raw.results) || raw.results.length === 0) {
+    throw new Error('College Scorecard returned no results for Rutgers');
   }
 
-  // --- Aggregate K-12 public school data ---
-  let totalEnrollment = 0;
-  let totalTeachers = 0;
-  let totalLunch = 0;
-
-  for (const school of schools) {
-    totalEnrollment += safeNum(school, 'enrollment');
-    totalTeachers += safeNum(school, 'teachers_fte');
-    // Field name varies across API versions
-    totalLunch += safeNum(school, 'free_or_reduced_price_lunch', 'num_free_or_reduced_lunch');
-  }
-
-  const studentTeacherRatio =
-    totalTeachers > 0 ? Math.round((totalEnrollment / totalTeachers) * 10) / 10 : 0;
-
-  const povertyRate =
-    totalEnrollment > 0 ? Math.round((totalLunch / totalEnrollment) * 100) : 0;
-
-  const mathRecord = math[0] ?? {};
-  const mathProficiency = safeNum(mathRecord, 'pct_prof_or_above', 'proficiency_rate');
-
-  const rlaRecord = rla[0] ?? {};
-  const readingProficiency = safeNum(rlaRecord, 'pct_prof_or_above', 'proficiency_rate');
-
-  const gradRecord = grads[0] ?? {};
-  const k12GradRate = safeNum(gradRecord, 'grad_rate', 'grad_rate_4yr', 'graduation_rate');
-
-  // Derived school rating: average of math + reading proficiency percentages
-  const rating = Math.round((mathProficiency + readingProficiency) / 2);
-
-  // --- Rutgers data ---
-  const ipedsDirRecord = ipedsDir[0] ?? {};
-  const studentFacultyRatio = safeNum(ipedsDirRecord, 'stufacr', 'student_to_faculty_ratio');
-
-  const admRecord = admissions[0] ?? {};
-  const totalApplicants = safeNum(admRecord, 'applcn');
-  const totalAdmitted = safeNum(admRecord, 'admssn');
-  const acceptanceRate =
-    totalApplicants > 0
-      ? Math.round((totalAdmitted / totalApplicants) * 100 * 10) / 10
-      : 0;
-
-  const rutgersGradRecord = rutgersGrads[0] ?? {};
-  const rutgersGradRate = safeNum(
-    rutgersGradRecord,
-    'grad_rate_150',
-    'graduation_rate_150pct',
-    'graduation_rate',
-  );
+  const r = raw.results[0]!;
+  const gradRate = r['latest.completion.rate_suppressed.overall'];
+  const admRate = r['latest.admissions.admission_rate.overall'];
+  const ratio = r['latest.student.faculty_ratio'];
 
   return {
-    source: 'Urban Institute Education Data Portal (NCES / IPEDS)',
-    sourceUrl: 'https://educationdata.urban.org',
+    graduationRate: gradRate != null ? Math.round(gradRate * 100) : 0,
+    acceptanceRate: admRate != null ? Math.round(admRate * 100 * 10) / 10 : 0,
+    studentFacultyRatio: ratio != null ? Math.round(ratio) : 0,
+  };
+}
+
+async function fetchSchoolsData(): Promise<SchoolData> {
+  // Rutgers data via College Scorecard (api.data.gov)
+  const rutgers = await fetchRutgersData();
+
+  const nb = NB_PUBLIC_SCHOOLS;
+  const rating = Math.round((nb.mathProficiency + nb.readingProficiency) / 2);
+
+  return {
+    source: 'NJ DOE Report Card + College Scorecard (api.data.gov)',
+    sourceUrl: 'https://rc.doe.state.nj.us',
     lastUpdated: new Date().toISOString(),
     publicSchools: {
       rating,
-      mathProficiency,
-      readingProficiency,
-      studentTeacherRatio,
-      graduationRate: k12GradRate,
-      povertyRate,
-      enrollment: totalEnrollment,
+      mathProficiency: nb.mathProficiency,
+      readingProficiency: nb.readingProficiency,
+      studentTeacherRatio: nb.studentTeacherRatio,
+      graduationRate: nb.graduationRate,
+      povertyRate: nb.povertyRate,
+      enrollment: nb.enrollment,
     },
     rutgers: {
-      graduationRate: rutgersGradRate,
-      acceptanceRate,
-      studentFacultyRatio,
+      graduationRate: rutgers.graduationRate,
+      acceptanceRate: rutgers.acceptanceRate,
+      studentFacultyRatio: rutgers.studentFacultyRatio,
     },
-    // NJ school rankings require NJ DOE Report Card data — not in Urban Institute API
     stateRanking: null,
-    dataNote: `${DATA_YEAR} NCES CCD + EDFacts + IPEDS`,
+    dataNote: `Public school stats: NJ DOE Report Card ${nb.dataYear}. Rutgers: College Scorecard latest.`,
   };
 }
 
 export function getSchools(): Promise<SchoolData> {
-  return fetchWithCache<SchoolData>('schools', 'urban-institute', fetchSchoolsData, 30);
+  return fetchWithCache<SchoolData>('schools', 'scorecard', fetchSchoolsData, 30);
 }

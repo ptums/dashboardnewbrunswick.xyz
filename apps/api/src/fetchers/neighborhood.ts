@@ -1,7 +1,7 @@
 import type { NeighborhoodData, WalkScoreDetail } from '@repo/shared';
 import { fetchWithCache } from '../lib/cache';
 
-const WALK_SCORE_BASE = 'https://api.walkscore.com/score/';
+const WALK_SCORE_BASE = 'https://api.walkscore.com/score';
 
 // New Brunswick, NJ city center
 const LAT = 40.4862;
