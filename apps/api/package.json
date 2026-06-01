@@ -16,7 +16,8 @@
     "drizzle-orm": "^0.45.2",
     "express": "^4.19.2",
     "node-cache": "^5.1.2",
-    "pg": "^8.21.0"
+    "pg": "^8.21.0",
+    "resend": "^6.12.4"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

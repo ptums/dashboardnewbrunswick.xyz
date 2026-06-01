@@ -7,7 +7,10 @@ Sentry.init({
 
 import express from 'express';
 import NodeCache from 'node-cache';
-import type { DashboardResponse } from '@repo/shared';
+import { Resend } from 'resend';
+import type { DashboardResponse, FeedbackPayload } from '@repo/shared';
+import { db } from './db/index';
+import { feedbackSubmissions } from './db/schema';
 import { getDemographics } from './fetchers/demographics';
 import { getCrime } from './fetchers/crime';
 import { getJobs } from './fetchers/jobs';
@@ -19,8 +22,10 @@ import { computeCompositeScore, generateVerdicts } from './lib/scoring';
 const app = express();
 const PORT = Number(process.env['PORT'] ?? 3001);
 const dashboardCache = new NodeCache({ stdTTL: 3600 });
+const resend = new Resend(process.env['RESEND_API_KEY']);
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -150,6 +155,59 @@ app.get('/api/dashboard', async (_req, res) => {
   } catch (err) {
     Sentry.captureException(err);
     res.status(500).json({ error: 'Dashboard temporarily unavailable', ok: false });
+  }
+});
+
+app.post('/api/feedback', async (req, res) => {
+  const body = req.body as Partial<FeedbackPayload>;
+  const name = typeof body.name === 'string' ? body.name.trim() || null : null;
+  const email = typeof body.email === 'string' ? body.email.trim() || null : null;
+  const page = typeof body.page === 'string' ? body.page.trim() || null : null;
+  const message = typeof body.message === 'string' ? body.message.trim() : '';
+
+  if (message.length < 10) {
+    res.status(400).json({
+      ok: false,
+      error: 'Message is required and must be at least 10 characters.',
+    });
+    return;
+  }
+
+  const submittedAt = new Date().toISOString();
+
+  try {
+    await db.insert(feedbackSubmissions).values({ name, email, message, page });
+
+    const feedbackEmail = process.env['FEEDBACK_EMAIL'];
+    if (feedbackEmail) {
+      resend.emails
+        .send({
+          from: 'noreply@dashboardnewbrunswick.xyz',
+          to: feedbackEmail,
+          subject: 'New Feedback — Dashboard New Brunswick',
+          text: [
+            'New feedback submission received.',
+            '',
+            `Name: ${name ?? 'Anonymous'}`,
+            `Email: ${email ?? 'Not provided'}`,
+            `Page: ${page ?? 'Not specified'}`,
+            `Message: ${message}`,
+            '',
+            `Submitted at: ${submittedAt}`,
+          ].join('\n'),
+        })
+        .then(({ error }) => {
+          if (error) Sentry.captureException(error, { tags: { context: 'feedback-email' } });
+        })
+        .catch((err: unknown) => {
+          Sentry.captureException(err, { tags: { context: 'feedback-email' } });
+        });
+    }
+
+    res.json({ ok: true, message: 'Thank you for your feedback' });
+  } catch (err) {
+    Sentry.captureException(err);
+    res.status(500).json({ ok: false, error: 'Something went wrong. Please try again.' });
   }
 });
 

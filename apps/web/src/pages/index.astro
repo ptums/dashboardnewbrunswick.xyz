@@ -11,6 +11,8 @@ import JobsSection from '../components/JobsSection';
 import NeighborhoodSection from '../components/NeighborhoodSection';
 import AirQualitySection from '../components/AirQualitySection';
 import DemographicsSection from '../components/DemographicsSection';
+import FeedbackBanner from '../components/FeedbackBanner';
+import FeedbackForm from '../components/FeedbackForm';
 
 const title = 'Is New Brunswick a good place to live? | Dashboard New Brunswick';
 const description =
@@ -39,15 +41,18 @@ const description =
 
     <VerdictSection data={null} client:load />
 
-    <section id="feedback" class="bg-blue-50 px-4 py-16">
-      <div class="mx-auto max-w-4xl text-center">
-        <h2 class="text-xl font-bold text-gray-900">Did we get something wrong?</h2>
-        <p class="mt-2 text-sm text-gray-600">
-          This site runs on public data. If you spot an error, tell us and we'll fix it.
-        </p>
-        <div class="mt-6 rounded-xl border border-dashed border-blue-200 bg-white p-8 text-center text-sm text-gray-400">
-          Coming soon — <code class="text-gray-500">FeedbackBanner</code> component
+    <FeedbackBanner client:load />
+
+    <section id="feedback-form" class="border-t border-gray-100 bg-white px-4 py-16">
+      <div class="mx-auto max-w-2xl">
+        <div class="mb-2 flex items-center gap-3">
+          <div class="h-6 w-1 rounded bg-blue-600"></div>
+          <h2 class="text-2xl font-bold text-gray-900">Leave Feedback</h2>
         </div>
+        <p class="mb-6 text-sm text-gray-500">
+          All fields except Message are optional. We read every submission.
+        </p>
+        <FeedbackForm client:load />
       </div>
     </section>
   </main>

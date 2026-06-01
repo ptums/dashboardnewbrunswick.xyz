@@ -513,7 +513,7 @@ pnpm --filter api db:studio   # Open Drizzle Studio
 - [x] **Task 14:** `<SafetySection />` and `<SchoolsSection />` components
 - [x] **Task 15:** `<CostSection />`, `<JobsSection />`, `<NeighborhoodSection />` components
 - [x] **Task 16:** `<AirQualitySection />` and `<DemographicsSection />` components
-- [ ] **Task 17:** Feedback form + `/api/feedback` endpoint + Resend email
+- [x] **Task 17:** Feedback form + `/api/feedback` endpoint + Resend email
 
 ### Phase 4 — SEO & Polish
 
