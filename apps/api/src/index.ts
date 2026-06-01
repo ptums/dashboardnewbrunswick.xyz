@@ -6,6 +6,7 @@ Sentry.init({
 });
 
 import express from 'express';
+import cors from 'cors';
 import NodeCache from 'node-cache';
 import { Resend } from 'resend';
 import type { DashboardResponse, FeedbackPayload } from '@repo/shared';
@@ -23,6 +24,24 @@ const app = express();
 const PORT = Number(process.env['PORT'] ?? 3001);
 const dashboardCache = new NodeCache({ stdTTL: 3600 });
 
+const ALLOWED_ORIGINS = [
+  'http://localhost:4321',
+  'https://dashboardnewbrunswick.xyz',
+  'https://www.dashboardnewbrunswick.xyz',
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, server-to-server, etc.)
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
