@@ -22,7 +22,6 @@ import { computeCompositeScore, generateVerdicts } from './lib/scoring';
 const app = express();
 const PORT = Number(process.env['PORT'] ?? 3001);
 const dashboardCache = new NodeCache({ stdTTL: 3600 });
-const resend = new Resend(process.env['RESEND_API_KEY']);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -178,9 +177,10 @@ app.post('/api/feedback', async (req, res) => {
   try {
     await db.insert(feedbackSubmissions).values({ name, email, message, page });
 
+    const resendKey = process.env['RESEND_API_KEY'];
     const feedbackEmail = process.env['FEEDBACK_EMAIL'];
-    if (feedbackEmail) {
-      resend.emails
+    if (resendKey && feedbackEmail) {
+      new Resend(resendKey).emails
         .send({
           from: 'noreply@dashboardnewbrunswick.xyz',
           to: feedbackEmail,
